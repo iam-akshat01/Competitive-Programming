@@ -16,72 +16,81 @@ int main() {
         for (int i = 0; i < n; i++) cin >> a[i];
         for (int i = 0; i < m; i++) cin >> b[i];
 
+        string inst;
+        cin >> inst;
+        int x = inst.size();
+
+        sort(a.begin(), a.end());
         sort(b.begin(), b.end());
 
-        const ll INF = (ll)4e18;
-        vector<ll> L(n, INF), R(n, INF);
+        vector<vector<ll>> instructions(x, vector<ll>(2));
+        vector<ll> answer(x, 0);
+
+        const ll INF = (ll)4e16;
+        vector<ll> left(n, INF), right(n, INF);
+
+        ll sh = 0;
+        for (int i = 0; i < x; i++) {
+            if (inst[i] == 'L') sh--;
+            else sh++;
+            instructions[i] = {sh, i};
+        }
+        sort(instructions.begin(), instructions.end());
 
         for (int i = 0; i < n; i++) {
-            ll x = a[i];
-            auto it = lower_bound(b.begin(), b.end(), x);
-            if (it != b.end()) R[i] = *it - x;
-            if (it != b.begin()) {
-                --it;
-                L[i] = x - *it;
-            }
+            int idx = upper_bound(b.begin(), b.end(), a[i]) - b.begin();
+            if (idx < m) right[i] = b[idx] - a[i];
         }
 
-        string s;
-        cin >> s;
-
-        vector<pair<ll,ll>> sh;
-        sh.reserve(k + 1);
-
-        ll cur = 0;
-        sh.push_back({0, 0});
-        for (ll i = 1; i <= k; i++) {
-            cur += (s[i - 1] == 'R' ? 1 : -1);
-            sh.push_back({cur, i});
+        int ptr = 0;
+        for (int i = 0; i < n; i++) {
+            while (ptr + 1 < m && b[ptr + 1] < a[i]) ptr++;
+            if (b[ptr] < a[i]) left[i] = a[i] - b[ptr];
         }
-
-        sort(sh.begin(), sh.end());
-
-        vector<ll> dead(k + 2, 0);
 
         for (int i = 0; i < n; i++) {
             ll best = INF;
 
-            if (R[i] != INF) {
+            // RIGHT: shift >= right[i]
+            if (right[i] != INF) {
                 auto it = upper_bound(
-                    sh.begin(), sh.end(),
-                    make_pair(R[i] - 1, INF)
+                    instructions.begin(),
+                    instructions.end(),
+                    vector<ll>{right[i] - 1, INF}
                 );
-                if (it != sh.end() && it->first >= R[i]) {
-                    best = it->second;
-                }
-            }
 
-            if (L[i] != INF) {
-                auto it = upper_bound(
-                    sh.begin(), sh.end(),
-                    make_pair(-L[i], INF)
-                );
-                if (it != sh.begin()) {
-                    --it;
-                    if (it->first <= -L[i]) {
-                        best = min(best, it->second);
+                if (it != instructions.end()) {
+                    if ((*it)[0] >= right[i]) {
+                        best = (*it)[1];
                     }
                 }
             }
 
-            if (best <= k)
-                dead[best]++;
+            // LEFT: shift <= -left[i]
+            if (left[i] != INF) {
+                auto it = upper_bound(
+                    instructions.begin(),
+                    instructions.end(),
+                    vector<ll>{-left[i] - 1, INF}
+                );
+
+                // 👇 your rule: do NOT discard begin()
+                if (it != instructions.end()) {
+                    if ((*it)[0] <= -left[i]) {
+                        best = min(best, (*it)[1]);
+                    }
+                }
+            }
+
+            if (best != INF) {
+                answer[best]++;
+            }
         }
 
-        ll alive = n;
-        for (int i = 1; i <= k; i++) {
-            alive -= dead[i];
-            cout << alive << " ";
+        ll dead = 0;
+        for (int i = 0; i < x; i++) {
+            dead += answer[i];
+            cout << n - dead << " ";
         }
         cout << "\n";
     }
